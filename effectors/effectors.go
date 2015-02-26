@@ -15,11 +15,13 @@ import(
 
 type EffectorCommand struct {
 	cliConnection plugin.CliConnection
+	ui            terminal.UI
 }
 
-func NewEffectorCommand(cliConnection plugin.CliConnection) *EffectorCommand{
+func NewEffectorCommand(cliConnection plugin.CliConnection, ui terminal.UI) *EffectorCommand{
 	command := new(EffectorCommand)
 	command.cliConnection = cliConnection
+	command.ui = ui
 	return command
 }
 

@@ -13,9 +13,10 @@ import (
 
 type SensorCommand struct {
 	cliConnection plugin.CliConnection
+	ui            terminal.UI
 }
 
-func NewSensorCommand(cliConnection plugin.CliConnection) *SensorCommand{
+func NewSensorCommand(cliConnection plugin.CliConnection, ui terminal.UI) *SensorCommand{
 	command := new(SensorCommand)
 	command.cliConnection = cliConnection
 	return command

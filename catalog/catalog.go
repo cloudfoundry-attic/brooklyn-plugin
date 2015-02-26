@@ -6,6 +6,7 @@ import(
 	"github.com/cloudfoundry-community/brooklyn-plugin/broker"
 	"fmt"
 	"github.com/cloudfoundry/cli/plugin"
+	"github.com/cloudfoundry/cli/cf/terminal"
 	"net/http"
 	"path/filepath"
 	"os"
@@ -13,11 +14,13 @@ import(
 
 type AddCatalogCommand struct {
 	cliConnection plugin.CliConnection
+	ui            terminal.UI
 }
 
-func NewAddCatalogCommand(cliConnection plugin.CliConnection) *AddCatalogCommand{
+func NewAddCatalogCommand(cliConnection plugin.CliConnection, ui terminal.UI) *AddCatalogCommand{
 	command := new(AddCatalogCommand)
 	command.cliConnection = cliConnection
+	command.ui = ui
 	return command
 }
 
