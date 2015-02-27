@@ -37,7 +37,7 @@ func SendRequest(req *http.Request) ([]byte, error){
 
 func ServiceBrokerUrl(cliConnection plugin.CliConnection, broker string) (string, error){
 	brokers, err := cliConnection.CliCommandWithoutTerminalOutput("service-brokers")
-	assert.Condition(err == nil, "")
+	assert.Condition(err == nil, "could not get service broker url")
 	for _, a := range brokers {
 		fields := strings.Fields(a)	
 		if fields[0] == broker { 

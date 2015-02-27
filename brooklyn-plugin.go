@@ -73,7 +73,7 @@ func (c *BrooklynPlugin) Run(cliConnection plugin.CliConnection, args []string) 
 		yamlMap.Set("target", broker)
 		io.WriteYAMLFile(yamlMap, file)
 	case "push":
-		push.NewPushCommand(cliConnection, c.ui).Push(args[1:])
+		push.NewPushCommand(cliConnection, c.ui, brokerCredentials).Push(args[1:])
 	case "add-catalog":
 	    if argLength == 3 {
 			assert.Condition(found, "target not set")
