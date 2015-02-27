@@ -73,10 +73,13 @@ func (c *PushCommand) Push(args []string){
 	for _, service := range allCreatedServices {
 		go func(service string) {
 			defer wg.Done()
+			fmt.Printf("Waiting for %s to start...\n", service)
 			c.waitForServiceReady(service)
+			fmt.Printf("%s is now ready.\n", service)
 		}(service)
 	}
 	wg.Wait()
+	
 	c.pushWith(args, "manifest.temp.yml")
 }
 
@@ -174,26 +177,28 @@ func (c *PushCommand) extractAndCreateService(brooklynApplication map[interface{
 	blueprints, found := brooklynApplication["services"].([]interface{})
 	var location string
 	if found {
+		
 		// only do this if catalog doesn't contain it already
-		if exists := c.catalogItemExists(name); !exists {
-			// now we decide whether to add a location to the
-			// catalog item, or use all locations as plans
-			switch brooklynApplication["location"].(type) {
-			case string: 
-				location = brooklynApplication["location"].(string)
+		// now we decide whether to add a location to the
+		// catalog item, or use all locations as plans
+		switch brooklynApplication["location"].(type) {
+		case string: 
+			location = brooklynApplication["location"].(string)
+			if exists := c.catalogItemExists(name); !exists {
 				c.createNewCatalogItemWithoutLocation(name, blueprints)
-			case map[interface{}]interface{}:
-				locationMap := brooklynApplication["location"].(map[interface{}]interface{})
-			    count := 0
-				for key, _ := range  locationMap{
-					location, found = key.(string)
-					assert.Condition(found, "location not found")
-					count = count + 1
-				}
-				assert.Condition(count == 1, "Expected only one location")
+			}
+		case map[interface{}]interface{}:
+			locationMap := brooklynApplication["location"].(map[interface{}]interface{})
+		    	count := 0
+			for key, _ := range  locationMap{
+				location, found = key.(string)
+				assert.Condition(found, "location not found")
+				count = count + 1
+			}
+			assert.Condition(count == 1, "Expected only one location")
+			if exists := c.catalogItemExists(name); !exists {
 				c.createNewCatalogItemWithLocation(name, blueprints, locationMap)
 			}
-			
 		}
 		c.cliConnection.CliCommand("create-service", name, location, name)
 	}
