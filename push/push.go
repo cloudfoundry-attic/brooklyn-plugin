@@ -6,6 +6,7 @@ import (
 	"github.com/cloudfoundry-community/brooklyn-plugin/broker"
 	"github.com/cloudfoundry-community/brooklyn-plugin/io"
 	"github.com/cloudfoundry-community/brooklyn-plugin/sensors"
+	"github.com/cloudfoundry-community/brooklyn-plugin/catalog"
 	"fmt"
 	"path/filepath"
 	"net/http"
@@ -118,7 +119,7 @@ func (c *PushCommand) mergeServices(application map[interface{}]interface{}, ser
 	if oldServices, found := application["services"].([]interface {}); found {
 		for _, name := range oldServices {
 			//fmt.Println("found", name)
-    		services = append(services, name.(string))
+    			services = append(services, name.(string))
 		}
 	}
 	return services
@@ -139,33 +140,60 @@ func (c *PushCommand) createAllServices(brooklyn []interface{}) []string{
 func (c *PushCommand) newService(brooklynApplication map[interface{}]interface{}) string{
 	name, found := brooklynApplication["name"].(string)
 	assert.Condition(found, "Expected Name.")
-	location, found := brooklynApplication["location"].(string)
-	assert.Condition(found, "Expected Location")
+	
+	// TODO allow location to be a map containg credentials etc.
+	//switch brooklynApplication["location"].(type) {
+	//case string: // just use this location
+	//case map[string]interface{}: // 
+	//}
+		
+	//location, found := brooklynApplication["location"].(string)
+	//assert.Condition(found, "Expected Location")
 	//fmt.Println("creating service:",name, location)
-	c.createServices(brooklynApplication, name, location)
+	c.createServices(brooklynApplication, name)
 	return name
 }
 
-func (c *PushCommand) createServices(brooklynApplication map[interface{}]interface{}, name, location string){
+func (c *PushCommand) createServices(brooklynApplication map[interface{}]interface{}, name string){
 	// If there is a service section then this refers to an
 	// existing catalog entry.
 	service, found := brooklynApplication["service"].(string)
 	if found {
+		// now we must use an existing plan (location)
+		location, found := brooklynApplication["location"].(string)
+		assert.Condition(found, "Expected Location") 
 		c.cliConnection.CliCommand("create-service", service, location, name)
 	} else {
-		c.extractAndCreateService(brooklynApplication, name, location)
+		c.extractAndCreateService(brooklynApplication, name)
 	}
 }
 
-func (c *PushCommand) extractAndCreateService(brooklynApplication map[interface{}]interface{}, name, location string){
+func (c *PushCommand) extractAndCreateService(brooklynApplication map[interface{}]interface{}, name string){
 	// If there is a services section then this is a blueprint
 	// and this should be extracted and sent as a catalog item 
 	blueprints, found := brooklynApplication["services"].([]interface{})
-	
-	// only do this if catalog doesn't contain it already
+	var location string
 	if found {
+		// only do this if catalog doesn't contain it already
 		if exists := c.catalogItemExists(name); !exists {
-			c.createNewCatalogItem(name, blueprints)
+			// now we decide whether to add a location to the
+			// catalog item, or use all locations as plans
+			switch brooklynApplication["location"].(type) {
+			case string: 
+				location = brooklynApplication["location"].(string)
+				c.createNewCatalogItemWithoutLocation(name, blueprints)
+			case map[interface{}]interface{}:
+				locationMap := brooklynApplication["location"].(map[interface{}]interface{})
+			    count := 0
+				for key, _ := range  locationMap{
+					location, found = key.(string)
+					assert.Condition(found, "location not found")
+					count = count + 1
+				}
+				assert.Condition(count == 1, "Expected only one location")
+				c.createNewCatalogItemWithLocation(name, blueprints, locationMap)
+			}
+			
 		}
 		c.cliConnection.CliCommand("create-service", name, location, name)
 	}
@@ -186,10 +214,10 @@ func (c *PushCommand) catalogItemExists(name string) bool {
 	return false
 }
 
-func (c *PushCommand) createNewCatalogItem(name string, blueprintMap []interface{}){
+func (c *PushCommand) createCatalogYamlMap(name string, blueprintMap []interface{}) generic.Map{
 	yamlMap := generic.NewMap()
 	entry := map[string]string{
-    	"id": c.randomString(8),
+    	"id": name,
     	"version": "1.0",
     	"iconUrl": "",
     	"description": "A user defined blueprint",
@@ -199,26 +227,39 @@ func (c *PushCommand) createNewCatalogItem(name string, blueprintMap []interface
 	yamlMap.Set("services", []map[string]interface{}{
 		map[string]interface{}{
 			"type": "brooklyn.entity.basic.BasicApplication",
+			"name": name,
 			"brooklyn.children": blueprintMap,
 		},
 	})
+	return yamlMap
+}
+
+func (c *PushCommand) createNewCatalogItemWithLocation(
+    name string, blueprintMap []interface{}, location map[interface{}]interface{}){
+	yamlMap := c.createCatalogYamlMap(name, blueprintMap)
+	yamlMap.Set("location", generic.NewMap(location))
+	c.createNewCatalogItem(name, yamlMap)
+}
+
+func (c *PushCommand) createNewCatalogItemWithoutLocation(name string, blueprintMap []interface{}){
+	yamlMap := c.createCatalogYamlMap(name, blueprintMap)
+	c.createNewCatalogItem(name, yamlMap)
+}
+
+func (c *PushCommand) createNewCatalogItem(name string, yamlMap generic.Map){
 	tempFile := "catalog.temp.yml"
 	io.WriteYAMLFile(yamlMap, tempFile)
-	
-	//fmt.Println("Wrote new catalog file")
 	
 	cred := c.credentials
 	brokerUrl, err := broker.ServiceBrokerUrl(c.cliConnection, cred.Broker)
 	assert.ErrorIsNil(err)
-	c.addCatalog(cred, tempFile)
 	
-	// TODO:
-	//  catalog.NewAddCatalogCommand(c.cliConnection, c.ui).AddCatalog(cred, tempFile)
+	catalog.NewAddCatalogCommand(c.cliConnection, c.ui).AddCatalog(cred, tempFile)
 	
 	c.cliConnection.CliCommand("update-service-broker", cred.Broker, cred.Username, cred.Password, brokerUrl)
 	c.cliConnection.CliCommand("enable-service-access", name)
-	err = os.Remove(tempFile)
-	assert.ErrorIsNil(err)
+	//err = os.Remove(tempFile)
+	//assert.ErrorIsNil(err)
 }
 
 func (c *PushCommand) addCatalog(cred *broker.BrokerCredentials, filePath string) {
@@ -233,22 +274,6 @@ func (c *PushCommand) addCatalog(cred *broker.BrokerCredentials, filePath string
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	broker.SendRequest(req)
 }
-
-
-//func (c *PushCommand) promptForBrokerCredentials() *broker.BrokerCredentials{
-	
-//	if c.credentials.Broker != "" && 
-//	   c.credentials.Username != "" && 
-//	   c.credentials.Password != "" {
-//	    return c.credentials
-//	}
-	
-//	brokerName := c.ui.Ask("Broker")
-//	username := c.ui.Ask("Username")
-//	password := c.ui.AskForPassword("Password")
-//	c.credentials = broker.NewBrokerCredentials(brokerName, username, password)
-//	return c.credentials
-//}
 
 func (c *PushCommand) randomString(size int) string{
 	rb := make([]byte,size)
