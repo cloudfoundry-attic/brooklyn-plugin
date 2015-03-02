@@ -2,11 +2,20 @@ Brooklyn Cloud Foundry Plugin
 -----------------------------
 To build,
 
-    $ go build brooklyn-plugin.go
+    $ go build
 
 To install,
 
     $ cf install-plugin brooklyn-plugin
+
+Login
+-----
+
+    $ cf brooklyn login
+
+this will prompt for a broker, and if not already stored a username and password.
+It will then store these details in $HOME/.cf_brooklyn_plugin
+
 
 Push
 ----
@@ -69,8 +78,7 @@ In this instance, the brooklyn section will be extracted and converted into a ca
       brooklyn.children:
       - type: brooklyn.entity.database.mysql.MySqlNode
       
-The user is then prompted for a broker with its username and password for which to submit this.  The broker will then be refreshed and the service enabled.  Then the service broker will create an instance of this service and
-replace the section in the manifest with,
+The user is then prompted for a broker with its username and password for which to submit this.  The broker will then be refreshed and the service enabled.  Then the service broker will create an instance of this service and replace the section in the manifest with,
 
     applications:
     - name: my-app
@@ -78,11 +86,13 @@ replace the section in the manifest with,
     services:
     - my-MySQL
     - old-service
+	
+Push will then wait for the service to be provisioned before delegating to the original push for binding etc.
 
 Adding catalog items manually
 -----------------------------
 
-    $ cf brooklyn add-catalog <broker> <username> <password> <path/to/blueprint.yml>
+    $ cf brooklyn add-catalog [<broker> <username> <password>] <path/to/blueprint.yml>
     
 this allows new entities to be created and added to the brooklyn
 catalog.  The service broker that is associated will need to be
@@ -92,24 +102,43 @@ refreshed with `cf update-service-broker` and enabled with
 Deleting catalog items
 ----------------------
 
-    $ cf brooklyn delete-catalog <broker> <username> <password> <name> <version>
+    $ cf brooklyn delete-catalog [<broker> <username> <password>] <name> <version>
     
+this allows catalog items to be deleted from the service broker.
+As with `add-catalog`, the service broker will need to be refreshed
+for the changes to take effect.
 
 Listing Effectors
 -----------------
 
-    $ cf brooklyn effectors <broker> <username> <password> <service>
+    $ cf brooklyn effectors [<broker> <username> <password>] <service>
     
+this lists all of the effectors that can be invoked on the specified service.
+
 
 Invoking Effectors
 ------------------
 
-    $ cf brooklyn invoke <broker> <username> <password> <service> <effector>
+    $ cf brooklyn invoke [<broker> <username> <password>] <service> <effector>
+	
+invokes the effector on this service.
     
 Viewing Sensors
 ---------------
 
-    $ cf brooklyn sensors <broker> <username> <password> <service>
+    $ cf brooklyn sensors [<broker> <username> <password>] <service>
+	
+views the sensors associated with this service.
+
+Check if a service is ready for binding
+---------------------------------------
+
+    $ cf brooklyn ready [<broker> <username> <password>] <service>
+	
+checks if the service has been provisioned yet and is running.
+It is useful for this to be true before binding, since the
+VCAP_SERVICES variable will contain the sensor information that
+exists at bind time.
 
 Uninstall
 ---------
