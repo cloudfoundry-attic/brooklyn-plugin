@@ -21,7 +21,7 @@ import (
 	"encoding/base64"
     "crypto/rand"
 	//"io"
-	"sync"
+	//"sync"
 	"time"
 )
 
@@ -68,32 +68,44 @@ func (c *PushCommand) Push(args []string){
 		//fmt.Println(createdServices)
 		allCreatedServices = append(allCreatedServices, createdServices...)
 	}
-	var wg sync.WaitGroup
-	wg.Add(len(allCreatedServices))
 	for _, service := range allCreatedServices {
-		go func(service string) {
-			defer wg.Done()
-			fmt.Printf("Waiting for %s to start...\n", service)
-			c.waitForServiceReady(service)
-			fmt.Printf("%s is now ready.\n", service)
-		}(service)
+		fmt.Printf("Waiting for %s to start...\n", service)
 	}
-	wg.Wait()
+	
+	c.waitForServiceReady(allCreatedServices)
 	
 	c.pushWith(args, "manifest.temp.yml")
 }
 
-func (c *PushCommand) waitForServiceReady(service string) {
+func (c *PushCommand) waitForServiceReady(services []string) {
 	// before pushing check to see if service is running
-	creds := c.credentials
-	ready := sensors.NewSensorCommand(c.cliConnection, c.ui).IsServiceReady(creds, service);
+	
+	ready := c.allReady(services)
 	waitTime := 2 * time.Second
 	for !ready {
-		fmt.Printf("%s is not yet running. Trying again in %v\n", service, waitTime)
+		fmt.Printf("Trying again in %v\n", waitTime)
 		time.Sleep(waitTime)
-		ready = sensors.NewSensorCommand(c.cliConnection, c.ui).IsServiceReady(creds, service);
-		waitTime = 2 * waitTime
+		ready = c.allReady(services)
+		if 2 * waitTime == 16 * time.Second {
+			waitTime = 15 * 	time.Second
+		}else if 2*waitTime > time.Minute {
+			waitTime = time.Minute
+		}else{
+			waitTime = 2 * waitTime
+		}
 	}
+}
+
+func (c *PushCommand) allReady(services []string) bool {
+	ready := true
+	for _, service := range services {
+		serviceReady := sensors.NewSensorCommand(c.cliConnection, c.ui).IsServiceReady(c.credentials, service);
+		if(!serviceReady){
+			fmt.Printf("%s is not yet running.\n", service)
+		}
+		ready = ready && serviceReady 
+	}
+	return ready
 }
 
 func (c *PushCommand) pushWith(args []string, tempFile string) {

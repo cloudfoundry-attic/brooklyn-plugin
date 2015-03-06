@@ -150,11 +150,9 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 			Build: 0,
 		},
 		Commands: []plugin.Command{
-			{
+			{   // required to be a registered command
 				Name:     "brooklyn",
 				HelpText: "Brooklyn plugin command's help text",
-				// UsageDetails is optional
-				// It is used to show help of usage of each command
 				UsageDetails: plugin.Usage{
 					Usage: "brooklyn\n   cf brooklyn",
 				},
@@ -162,32 +160,53 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 			{
 				Name:     "brooklyn login",
 				HelpText: "Store Broker login credentials for use between commands",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn login\n   cf brooklyn login",
+				},
 			},
 			{
 				Name:     "brooklyn push",
 				HelpText: "Push a new app, replacing " + 
 				          "brooklyn section with instantiated services",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn push\n   cf brooklyn push [-f MANIFEST]",
+				},
 			},
 			{
 				Name:     "brooklyn add-catalog",
 				HelpText: "Submit a Blueprint to Brooklyn to be " +
 				          "added to its catalog",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn add-catalog\n   cf brooklyn add-catalog CATALOG",
+				},
 			},
 			{
 				Name:     "brooklyn delete-catalog",
 				HelpText: "Delete an item from the Brooklyn catalog",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn delete-catalog\n   cf brooklyn delete-catalog SERVICE VERSION",
+				},
 			},
 			{
 				Name:     "brooklyn effectors",
 				HelpText: "List the effectors available to a service",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn effectors\n   cf brooklyn effectors [BROKER USERNAME PASSWORD] SERVICE",
+				},
 			},
 			{
 				Name:     "brooklyn invoke",
 				HelpText: "Invoke an effector on a service",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn invoke\n   cf brooklyn invoke [BROKER USERNAME PASSWORD] SERVICE EFFECTOR",
+				},
 			},
 			{
 				Name:     "brooklyn sensors",
 				HelpText: "List the sensors with their outputs for a service",
+				UsageDetails: plugin.Usage{
+					Usage: "brooklyn sensors\n   cf brooklyn sensors [BROKER USERNAME PASSWORD] SERVICE",
+				},
 			},
 		},
 	}
