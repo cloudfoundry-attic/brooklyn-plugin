@@ -275,8 +275,8 @@ func (c *PushCommand) createNewCatalogItem(name string, yamlMap generic.Map){
 	
 	c.cliConnection.CliCommand("update-service-broker", cred.Broker, cred.Username, cred.Password, brokerUrl)
 	c.cliConnection.CliCommand("enable-service-access", name)
-	//err = os.Remove(tempFile)
-	//assert.ErrorIsNil(err)
+	err = os.Remove(tempFile)
+	assert.ErrorIsNil(err)
 }
 
 func (c *PushCommand) addCatalog(cred *broker.BrokerCredentials, filePath string) {
