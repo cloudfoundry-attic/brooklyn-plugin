@@ -144,8 +144,8 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 	return plugin.PluginMetadata{
 		Name: "BrooklynPlugin",
 		Version: plugin.VersionType{
-			Major: 1,
-			Minor: 0,
+			Major: 0,
+			Minor: 1,
 			Build: 0,
 		},
 		Commands: []plugin.Command{
