@@ -1,7 +1,6 @@
 package assert
 
 import (
-	
 	"github.com/cloudfoundry/cli/cf/errors"
 )
 

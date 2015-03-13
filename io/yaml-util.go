@@ -3,16 +3,14 @@ package io
 import (
 	//"fmt"
 	"github.com/cloudfoundry-community/brooklyn-plugin/assert"
-	"path/filepath"
+	"github.com/cloudfoundry-incubator/candiedyaml"
+	"github.com/cloudfoundry/cli/cf/errors"
 	. "github.com/cloudfoundry/cli/cf/i18n"
 	"github.com/cloudfoundry/cli/generic"
-	"github.com/cloudfoundry/cli/cf/errors"
-	"os"
-	"github.com/cloudfoundry-incubator/candiedyaml"
 	"io"
+	"os"
+	"path/filepath"
 )
-
-
 
 func ReadYAMLFile(path string) generic.Map {
 	file, err := os.Open(filepath.Clean(path))
@@ -28,7 +26,7 @@ func parse(file io.Reader) (yamlMap generic.Map, err error) {
 	decoder := candiedyaml.NewDecoder(file)
 	yamlMap = generic.NewMap()
 	err = decoder.Decode(yamlMap)
-	
+
 	assert.ErrorIsNil(err)
 
 	if !generic.IsMappable(yamlMap) {
@@ -38,7 +36,6 @@ func parse(file io.Reader) (yamlMap generic.Map, err error) {
 
 	return
 }
-
 
 func WriteYAMLFile(yamlMap generic.Map, path string) {
 

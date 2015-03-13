@@ -1,15 +1,14 @@
 package catalog
 
-import(
-	
+import (
+	"fmt"
 	"github.com/cloudfoundry-community/brooklyn-plugin/assert"
 	"github.com/cloudfoundry-community/brooklyn-plugin/broker"
-	"fmt"
-	"github.com/cloudfoundry/cli/plugin"
 	"github.com/cloudfoundry/cli/cf/terminal"
+	"github.com/cloudfoundry/cli/plugin"
 	"net/http"
-	"path/filepath"
 	"os"
+	"path/filepath"
 )
 
 type AddCatalogCommand struct {
@@ -17,7 +16,7 @@ type AddCatalogCommand struct {
 	ui            terminal.UI
 }
 
-func NewAddCatalogCommand(cliConnection plugin.CliConnection, ui terminal.UI) *AddCatalogCommand{
+func NewAddCatalogCommand(cliConnection plugin.CliConnection, ui terminal.UI) *AddCatalogCommand {
 	command := new(AddCatalogCommand)
 	command.cliConnection = cliConnection
 	command.ui = ui
@@ -26,11 +25,11 @@ func NewAddCatalogCommand(cliConnection plugin.CliConnection, ui terminal.UI) *A
 
 func (c *AddCatalogCommand) AddCatalog(cred *broker.BrokerCredentials, filePath string) {
 	fmt.Println("Adding Brooklyn catalog item...")
-	
+
 	file, err := os.Open(filepath.Clean(filePath))
 	assert.ErrorIsNil(err)
 	defer file.Close()
-	
+
 	req, err := http.NewRequest("POST", broker.CreateRestCallUrlString(c.cliConnection, cred, "create"), file)
 	assert.ErrorIsNil(err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -39,8 +38,8 @@ func (c *AddCatalogCommand) AddCatalog(cred *broker.BrokerCredentials, filePath 
 
 func (c *AddCatalogCommand) DeleteCatalog(cred *broker.BrokerCredentials, name, version string) {
 	fmt.Println("Deleting Brooklyn catalog item...")
-	req, err := http.NewRequest("DELETE", 
-	    broker.CreateRestCallUrlString(c.cliConnection, cred, "delete/" +name+ "/" + version + "/"), 
+	req, err := http.NewRequest("DELETE",
+		broker.CreateRestCallUrlString(c.cliConnection, cred, "delete/"+name+"/"+version+"/"),
 		nil)
 	assert.ErrorIsNil(err)
 	broker.SendRequest(req)

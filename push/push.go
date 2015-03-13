@@ -1,27 +1,21 @@
 package push
 
 import (
-	
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"github.com/cloudfoundry-community/brooklyn-plugin/assert"
 	"github.com/cloudfoundry-community/brooklyn-plugin/broker"
+	"github.com/cloudfoundry-community/brooklyn-plugin/catalog"
 	"github.com/cloudfoundry-community/brooklyn-plugin/io"
 	"github.com/cloudfoundry-community/brooklyn-plugin/sensors"
-	"github.com/cloudfoundry-community/brooklyn-plugin/catalog"
-	"fmt"
-	"path/filepath"
-	"net/http"
-	//"github.com/cloudfoundry/cli/cf/errors"
-	//. "github.com/cloudfoundry/cli/cf/i18n"
-	"github.com/cloudfoundry/cli/plugin"
 	"github.com/cloudfoundry/cli/cf/terminal"
 	"github.com/cloudfoundry/cli/generic"
+	"github.com/cloudfoundry/cli/plugin"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
-	//"github.com/cloudfoundry-incubator/candiedyaml"
-	"encoding/base64"
-    "crypto/rand"
-	//"io"
-	//"sync"
 	"time"
 )
 
@@ -32,7 +26,7 @@ type PushCommand struct {
 	credentials   *broker.BrokerCredentials
 }
 
-func NewPushCommand(cliConnection plugin.CliConnection, ui terminal.UI, credentials *broker.BrokerCredentials) *PushCommand{
+func NewPushCommand(cliConnection plugin.CliConnection, ui terminal.UI, credentials *broker.BrokerCredentials) *PushCommand {
 	command := new(PushCommand)
 	command.cliConnection = cliConnection
 	command.ui = ui
@@ -41,22 +35,19 @@ func NewPushCommand(cliConnection plugin.CliConnection, ui terminal.UI, credenti
 }
 
 /*
-    modify the application manifest before passing to to original command
-    TODO: We need to ensure that multiple calls to push do not keep 
-	      instantiating new instances of services that are already running
+   modify the application manifest before passing to to original command
 */
-func (c *PushCommand) Push(args []string){
+func (c *PushCommand) Push(args []string) {
 	// args[0] == "push"
-	
-	// TODO look up location of "-f"
+
+	// TODO use CF way of parsing args
 	manifest := "manifest.yml"
 	if len(args) >= 3 && args[1] == "-f" {
 		manifest = args[2]
 		args = append(args[:1], args[3:]...)
 	}
 	c.yamlMap = io.ReadYAMLFile(manifest)
-	
-	
+
 	//fmt.Println("getting brooklyn")
 	allCreatedServices := []string{}
 	applications := c.yamlMap.Get("applications").([]interface{})
@@ -71,26 +62,26 @@ func (c *PushCommand) Push(args []string){
 	for _, service := range allCreatedServices {
 		fmt.Printf("Waiting for %s to start...\n", service)
 	}
-	
+
 	c.waitForServiceReady(allCreatedServices)
-	
+
 	c.pushWith(args, "manifest.temp.yml")
 }
 
 func (c *PushCommand) waitForServiceReady(services []string) {
 	// before pushing check to see if service is running
-	
+
 	ready := c.allReady(services)
 	waitTime := 2 * time.Second
 	for !ready {
 		fmt.Printf("Trying again in %v\n", waitTime)
 		time.Sleep(waitTime)
 		ready = c.allReady(services)
-		if 2 * waitTime == 16 * time.Second {
-			waitTime = 15 * 	time.Second
-		}else if 2*waitTime > time.Minute {
+		if 2*waitTime == 16*time.Second {
+			waitTime = 15 * time.Second
+		} else if 2*waitTime > time.Minute {
 			waitTime = time.Minute
-		}else{
+		} else {
 			waitTime = 2 * waitTime
 		}
 	}
@@ -99,11 +90,11 @@ func (c *PushCommand) waitForServiceReady(services []string) {
 func (c *PushCommand) allReady(services []string) bool {
 	ready := true
 	for _, service := range services {
-		serviceReady := sensors.NewSensorCommand(c.cliConnection, c.ui).IsServiceReady(c.credentials, service);
-		if(!serviceReady){
+		serviceReady := sensors.NewSensorCommand(c.cliConnection, c.ui).IsServiceReady(c.credentials, service)
+		if !serviceReady {
 			fmt.Printf("%s is not yet running.\n", service)
 		}
-		ready = ready && serviceReady 
+		ready = ready && serviceReady
 	}
 	return ready
 }
@@ -116,7 +107,7 @@ func (c *PushCommand) pushWith(args []string, tempFile string) {
 	assert.ErrorIsNil(err)
 }
 
-func (c *PushCommand) replaceBrooklynCreatingServices(application map[interface{}]interface{}) []string{
+func (c *PushCommand) replaceBrooklynCreatingServices(application map[interface{}]interface{}) []string {
 	brooklyn, found := application["brooklyn"].([]interface{})
 	assert.Condition(found, "Brooklyn not found.")
 	// check to see if services section already exists
@@ -124,85 +115,75 @@ func (c *PushCommand) replaceBrooklynCreatingServices(application map[interface{
 	createdServices := c.createAllServices(brooklyn)
 	//fmt.Println("Done")
 	application["services"] = c.mergeServices(application, createdServices)
-	
+
 	delete(application, "brooklyn")
 	//fmt.Println("\nmodified...", application)
 	return createdServices
 }
 
 func (c *PushCommand) mergeServices(application map[interface{}]interface{}, services []string) []string {
-	if oldServices, found := application["services"].([]interface {}); found {
+	if oldServices, found := application["services"].([]interface{}); found {
 		for _, name := range oldServices {
 			//fmt.Println("found", name)
-    			services = append(services, name.(string))
+			services = append(services, name.(string))
 		}
 	}
 	return services
 }
 
-func (c *PushCommand) createAllServices(brooklyn []interface{}) []string{
+func (c *PushCommand) createAllServices(brooklyn []interface{}) []string {
 	services := []string{}
 	for _, brooklynApp := range brooklyn {
 		//fmt.Println("brooklyn app... \n", brooklynApp)
 		brooklynApplication, found := brooklynApp.(map[interface{}]interface{})
 		assert.Condition(found, "Expected Map.")
-		services = append(services, c.newService(brooklynApplication))	
+		services = append(services, c.newService(brooklynApplication))
 	}
 	//fmt.Println("finished creating services \n")
 	return services
 }
 
-func (c *PushCommand) newService(brooklynApplication map[interface{}]interface{}) string{
+func (c *PushCommand) newService(brooklynApplication map[interface{}]interface{}) string {
 	name, found := brooklynApplication["name"].(string)
 	assert.Condition(found, "Expected Name.")
-	
-	// TODO allow location to be a map containg credentials etc.
-	//switch brooklynApplication["location"].(type) {
-	//case string: // just use this location
-	//case map[string]interface{}: // 
-	//}
-		
-	//location, found := brooklynApplication["location"].(string)
-	//assert.Condition(found, "Expected Location")
-	//fmt.Println("creating service:",name, location)
 	c.createServices(brooklynApplication, name)
 	return name
 }
 
-func (c *PushCommand) createServices(brooklynApplication map[interface{}]interface{}, name string){
+func (c *PushCommand) createServices(brooklynApplication map[interface{}]interface{}, name string) {
 	// If there is a service section then this refers to an
 	// existing catalog entry.
 	service, found := brooklynApplication["service"].(string)
 	if found {
 		// now we must use an existing plan (location)
 		location, found := brooklynApplication["location"].(string)
-		assert.Condition(found, "Expected Location") 
+		assert.Condition(found, "Expected Location")
 		c.cliConnection.CliCommand("create-service", service, location, name)
 	} else {
 		c.extractAndCreateService(brooklynApplication, name)
 	}
 }
 
-func (c *PushCommand) extractAndCreateService(brooklynApplication map[interface{}]interface{}, name string){
+func (c *PushCommand) extractAndCreateService(brooklynApplication map[interface{}]interface{}, name string) {
 	// If there is a services section then this is a blueprint
-	// and this should be extracted and sent as a catalog item 
+	// and this should be extracted and sent as a catalog item
 	blueprints, found := brooklynApplication["services"].([]interface{})
 	var location string
 	if found {
-		
+
 		// only do this if catalog doesn't contain it already
 		// now we decide whether to add a location to the
 		// catalog item, or use all locations as plans
 		switch brooklynApplication["location"].(type) {
-		case string: 
+		case string:
 			location = brooklynApplication["location"].(string)
 			if exists := c.catalogItemExists(name); !exists {
 				c.createNewCatalogItemWithoutLocation(name, blueprints)
 			}
 		case map[interface{}]interface{}:
 			locationMap := brooklynApplication["location"].(map[interface{}]interface{})
-		    	count := 0
-			for key, _ := range  locationMap{
+			count := 0
+			for key, _ := range locationMap {
 				location, found = key.(string)
 				assert.Condition(found, "location not found")
 				count = count + 1
@@ -221,7 +202,7 @@ func (c *PushCommand) catalogItemExists(name string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	for _, a := range services {
 		fields := strings.Fields(a)
 		if fields[0] == "OK" {
@@ -231,20 +212,20 @@ func (c *PushCommand) catalogItemExists(name string) bool {
 	return false
 }
 
-func (c *PushCommand) createCatalogYamlMap(name string, blueprintMap []interface{}) generic.Map{
+func (c *PushCommand) createCatalogYamlMap(name string, blueprintMap []interface{}) generic.Map {
 	yamlMap := generic.NewMap()
 	entry := map[string]string{
-    	"id": name,
-    	"version": "1.0",
-    	"iconUrl": "",
-    	"description": "A user defined blueprint",
+		"id":          name,
+		"version":     "1.0",
+		"iconUrl":     "",
+		"description": "A user defined blueprint",
 	}
 	yamlMap.Set("brooklyn.catalog", entry)
 	yamlMap.Set("name", name)
 	yamlMap.Set("services", []map[string]interface{}{
 		map[string]interface{}{
-			"type": "brooklyn.entity.basic.BasicApplication",
-			"name": name,
+			"type":              "brooklyn.entity.basic.BasicApplication",
+			"name":              name,
 			"brooklyn.children": blueprintMap,
 		},
 	})
@@ -252,27 +233,27 @@ func (c *PushCommand) createCatalogYamlMap(name string, blueprintMap []interface
 }
 
 func (c *PushCommand) createNewCatalogItemWithLocation(
-    name string, blueprintMap []interface{}, location map[interface{}]interface{}){
+	name string, blueprintMap []interface{}, location map[interface{}]interface{}) {
 	yamlMap := c.createCatalogYamlMap(name, blueprintMap)
 	yamlMap.Set("location", generic.NewMap(location))
 	c.createNewCatalogItem(name, yamlMap)
 }
 
-func (c *PushCommand) createNewCatalogItemWithoutLocation(name string, blueprintMap []interface{}){
+func (c *PushCommand) createNewCatalogItemWithoutLocation(name string, blueprintMap []interface{}) {
 	yamlMap := c.createCatalogYamlMap(name, blueprintMap)
 	c.createNewCatalogItem(name, yamlMap)
 }
 
-func (c *PushCommand) createNewCatalogItem(name string, yamlMap generic.Map){
+func (c *PushCommand) createNewCatalogItem(name string, yamlMap generic.Map) {
 	tempFile := "catalog.temp.yml"
 	io.WriteYAMLFile(yamlMap, tempFile)
-	
+
 	cred := c.credentials
 	brokerUrl, err := broker.ServiceBrokerUrl(c.cliConnection, cred.Broker)
 	assert.ErrorIsNil(err)
-	
+
 	catalog.NewAddCatalogCommand(c.cliConnection, c.ui).AddCatalog(cred, tempFile)
-	
+
 	c.cliConnection.CliCommand("update-service-broker", cred.Broker, cred.Username, cred.Password, brokerUrl)
 	c.cliConnection.CliCommand("enable-service-access", name)
 	err = os.Remove(tempFile)
@@ -281,21 +262,20 @@ func (c *PushCommand) createNewCatalogItem(name string, yamlMap generic.Map){
 
 func (c *PushCommand) addCatalog(cred *broker.BrokerCredentials, filePath string) {
 	fmt.Println("Adding Brooklyn catalog item...")
-	
+
 	file, err := os.Open(filepath.Clean(filePath))
 	assert.ErrorIsNil(err)
 	defer file.Close()
-	
+
 	req, err := http.NewRequest("POST", broker.CreateRestCallUrlString(c.cliConnection, cred, "create"), file)
 	assert.ErrorIsNil(err)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	broker.SendRequest(req)
 }
 
-func (c *PushCommand) randomString(size int) string{
-	rb := make([]byte,size)
-  	_, err := rand.Read(rb)
+func (c *PushCommand) randomString(size int) string {
+	rb := make([]byte, size)
+	_, err := rand.Read(rb)
 	assert.ErrorIsNil(err)
 	return base64.URLEncoding.EncodeToString(rb)
 }
-
