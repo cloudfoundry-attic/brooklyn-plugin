@@ -1,5 +1,8 @@
 Brooklyn Cloud Foundry Plugin
 -----------------------------
+
+For information about compiling Go source code, see [Compile packages and dependencies](https://golang.org/cmd/go/).
+
 To build,
 
     $ go build
