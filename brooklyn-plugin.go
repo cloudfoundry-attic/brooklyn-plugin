@@ -23,6 +23,19 @@ type BrooklynPlugin struct {
 	credentials   *broker.BrokerCredentials
 }
 
+func (c *BrooklynPlugin) printHelp(name string) {
+	metadata := c.GetMetadata()
+	for _, command := range metadata.Commands {
+		if command.Name == name{
+			fmt.Println("Name:")
+			fmt.Printf("    %-s - %-s\n", command.Name, command.HelpText)
+			fmt.Println("Usage:")
+			fmt.Printf("    %-s\n", command.UsageDetails.Usage)
+			return
+		}
+	}
+}
+
 func (c *BrooklynPlugin) Run(cliConnection plugin.CliConnection, args []string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -30,8 +43,22 @@ func (c *BrooklynPlugin) Run(cliConnection plugin.CliConnection, args []string) 
 		}
 	}()
 	argLength := len(args)
+
 	c.ui = terminal.NewUI(os.Stdin, terminal.NewTeePrinter())
 	c.cliConnection = cliConnection
+	
+	if argLength == 1 {
+		metadata := c.GetMetadata()
+		for _, command := range metadata.Commands {
+			fmt.Printf("%-25s %-50s\n", command.Name, command.HelpText)
+		}
+		return
+	}
+	
+	if argLength == 3 && args[2] == "-h" {
+		c.printHelp(args[0] + " " + args[1])
+		return
+	}
 
 	// check to see if ~/.cf_brooklyn_plugin exists
 	// Then Parse it to get user credentials
@@ -153,14 +180,14 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 				Name:     "brooklyn",
 				HelpText: "Brooklyn plugin command's help text",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn\n   cf brooklyn",
+					Usage: "cf brooklyn",
 				},
 			},
 			{
 				Name:     "brooklyn login",
 				HelpText: "Store Broker login credentials for use between commands",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn login\n   cf brooklyn login",
+					Usage: "cf brooklyn login",
 				},
 			},
 			{
@@ -168,7 +195,7 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 				HelpText: "Push a new app, replacing " +
 					"brooklyn section with instantiated services",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn push\n   cf brooklyn push [-f MANIFEST]",
+					Usage: "cf brooklyn push [-f MANIFEST]",
 				},
 			},
 			{
@@ -176,35 +203,35 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 				HelpText: "Submit a Blueprint to Brooklyn to be " +
 					"added to its catalog",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn add-catalog\n   cf brooklyn add-catalog CATALOG",
+					Usage: "cf brooklyn add-catalog CATALOG",
 				},
 			},
 			{
 				Name:     "brooklyn delete-catalog",
 				HelpText: "Delete an item from the Brooklyn catalog",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn delete-catalog\n   cf brooklyn delete-catalog SERVICE VERSION",
+					Usage: "cf brooklyn delete-catalog SERVICE VERSION",
 				},
 			},
 			{
 				Name:     "brooklyn effectors",
 				HelpText: "List the effectors available to a service",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn effectors\n   cf brooklyn effectors [BROKER USERNAME PASSWORD] SERVICE",
+					Usage: "cf brooklyn effectors [BROKER USERNAME PASSWORD] SERVICE",
 				},
 			},
 			{
 				Name:     "brooklyn invoke",
 				HelpText: "Invoke an effector on a service",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn invoke\n   cf brooklyn invoke [BROKER USERNAME PASSWORD] SERVICE EFFECTOR",
+					Usage: "cf brooklyn invoke [BROKER USERNAME PASSWORD] SERVICE EFFECTOR",
 				},
 			},
 			{
 				Name:     "brooklyn sensors",
 				HelpText: "List the sensors with their outputs for a service",
 				UsageDetails: plugin.Usage{
-					Usage: "brooklyn sensors\n   cf brooklyn sensors [BROKER USERNAME PASSWORD] SERVICE",
+					Usage: "cf brooklyn sensors [BROKER USERNAME PASSWORD] SERVICE",
 				},
 			},
 		},
