@@ -86,11 +86,14 @@ func (c *BrooklynPlugin) Run(cliConnection plugin.CliConnection, args []string) 
 	switch args[1] {
 	case "login":
 		broker := c.ui.Ask("Broker")
+		if !yamlMap.Has("auth"){
+			yamlMap.Set("auth", generic.NewMap())
+		}
 		auth := generic.NewMap(yamlMap.Get("auth"))
+		
 		if !auth.Has(broker) {
 			user := c.ui.Ask("Username")
 			pass := c.ui.AskForPassword("Password")
-
 			auth.Set(broker, generic.NewMap(map[string]string{
 				"username": user,
 				"password": pass,
@@ -173,7 +176,7 @@ func (c *BrooklynPlugin) GetMetadata() plugin.PluginMetadata {
 		Version: plugin.VersionType{
 			Major: 0,
 			Minor: 1,
-			Build: 0,
+			Build: 1,
 		},
 		Commands: []plugin.Command{
 			{ // required to be a registered command
