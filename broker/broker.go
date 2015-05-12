@@ -51,7 +51,7 @@ func CreateRestCallUrlString(cliConnection plugin.CliConnection, cred *BrokerCre
 	brokerUrl, err := ServiceBrokerUrl(cliConnection, cred.Broker)
 	assert.Condition(err == nil, "No such broker")
 	brooklynUrl, err := url.Parse(brokerUrl)
-	assert.Condition(err == nil, "")
+	assert.Condition(err == nil, "Can't parse url")
 	brooklynUrl.Path = path
 	brooklynUrl.User = url.UserPassword(cred.Username, cred.Password)
 	return brooklynUrl.String()
