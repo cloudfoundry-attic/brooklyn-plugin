@@ -103,7 +103,10 @@ func (c *PushCommand) pushWith(args []string, tempFile string) {
 
 func (c *PushCommand) replaceTopLevelServices() []string {
 	allCreatedServices := []string{}
-	services := c.yamlMap.Get("services").([]interface{})
+	services, found := c.yamlMap.Get("services").([]interface{})
+	if !found {
+		return allCreatedServices
+	}
 	for i, service := range services {
 		switch service.(type) {
 		case string: // do nothing, since service is an existing named service
@@ -119,7 +122,10 @@ func (c *PushCommand) replaceTopLevelServices() []string {
 
 func (c *PushCommand) replaceApplicationServices() []string {
 	allCreatedServices := []string{}
-	applications := c.yamlMap.Get("applications").([]interface{})
+	applications, found := c.yamlMap.Get("applications").([]interface{})
+	if !found {
+		return allCreatedServices
+	}
 	for _, app := range applications {
 		application, found := app.(map[interface{}]interface{})
 		assert.Condition(found, "Application not found.")
