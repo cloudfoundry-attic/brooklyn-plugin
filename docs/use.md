@@ -4,7 +4,7 @@ Push
     $ cf brooklyn push
     
 creates services specified in the application manifest.  See here for [instructions on writing
-services descriptions](docs/manifest.md)
+services descriptions](manifest.md)
 
 Adding catalog items manually
 -----------------------------
