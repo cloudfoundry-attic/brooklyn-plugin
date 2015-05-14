@@ -1,6 +1,6 @@
 # Brooklyn Cloud Foundry Plugin
 
-This project makes a plugin to the cloud foundry [CLI]{https://github.com/cloudfoundry-community/brooklyn-service-broker} to manage services
+This project makes a plugin to the cloud foundry [CLI](https://github.com/cloudfoundry-community/brooklyn-service-broker) to manage services
 brokered by the Brooklyn Service Broker.
 
 ## Quick Start
@@ -18,4 +18,4 @@ Otherwise, you can [build it from source]{docs/build-and-test.md}.  Then login u
 which will prompt for a broker, and if not already stored a username and password.
 It will then store these details in $HOME/.cf_brooklyn_plugin
 
-The plugin is then ready for [use]{docs/use.md}. 
+The plugin is then ready for [use](docs/use.md). 
