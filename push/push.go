@@ -50,14 +50,20 @@ func (c *PushCommand) Push(args []string) {
 
 	//fmt.Println("getting brooklyn")
 	allCreatedServices := []string{}
+	
+	allCreatedServices = append(allCreatedServices, c.replaceTopLevelServices()...)
+	
 	applications := c.yamlMap.Get("applications").([]interface{})
 	for _, app := range applications {
 		//fmt.Println("app...\n", app)
 		application, found := app.(map[interface{}]interface{})
 		assert.Condition(found, "Application not found.")
 		createdServices := c.replaceBrooklynCreatingServices(application)
+		moreCreatedServices := c.replaceServicesCreatingFromDef(application)
 		//fmt.Println(createdServices)
 		allCreatedServices = append(allCreatedServices, createdServices...)
+		allCreatedServices = append(allCreatedServices, moreCreatedServices...)
+		
 	}
 	for _, service := range allCreatedServices {
 		fmt.Printf("Waiting for %s to start...\n", service)
@@ -107,17 +113,54 @@ func (c *PushCommand) pushWith(args []string, tempFile string) {
 	assert.ErrorIsNil(err)
 }
 
+func (c *PushCommand) replaceTopLevelServices() []string{
+	allCreatedServices := []string{}
+	
+	// check for top level services first and create if necessary
+	services := c.yamlMap.Get("services").([]interface{})
+	for i, service := range services {
+		switch service.(type) {
+		case string: // do nothing, since service is an existing named service
+		case map[interface{}]interface{}:
+		   	// service definition
+		   	createdService := c.newServiceFromMap(service.(map[interface{}]interface{}))
+		   	allCreatedServices = append(allCreatedServices, createdService)
+			// replace the defn in the yaml for its name
+			services[i] = createdService
+		}
+	}
+	return allCreatedServices
+}
+
 func (c *PushCommand) replaceBrooklynCreatingServices(application map[interface{}]interface{}) []string {
 	brooklyn, found := application["brooklyn"].([]interface{})
-	assert.Condition(found, "Brooklyn not found.")
+	var createdServices []string
+	if !found { return createdServices }
 	// check to see if services section already exists
 	//fmt.Println("creating services")
-	createdServices := c.createAllServices(brooklyn)
+	createdServices = c.createAllServices(brooklyn)
 	//fmt.Println("Done")
 	application["services"] = c.mergeServices(application, createdServices)
 
 	delete(application, "brooklyn")
 	//fmt.Println("\nmodified...", application)
+	return createdServices
+}
+
+func (c *PushCommand) replaceServicesCreatingFromDef(application map[interface{}]interface{}) []string {
+	services, found := application["services"].([]interface{})
+	assert.Condition(found, "Services section not found.")
+	createdServices := []string{}
+	for i, service := range services {
+		switch service.(type) {
+		case string: // do nothing, since service is an existing named service
+		case map[interface{}]interface{}:
+		   	// service definition
+			createdService := c.newServiceFromMap(service.(map[interface{}]interface{}))
+		   	createdServices = append(createdServices, createdService)
+			services[i] = createdService
+		}
+	}
 	return createdServices
 }
 
@@ -143,6 +186,19 @@ func (c *PushCommand) createAllServices(brooklyn []interface{}) []string {
 	return services
 }
 
+func (c *PushCommand) newServiceFromMap(service map[interface{}]interface{}) string {
+	name, found := service["name"].(string)
+	assert.Condition(found, "no name specified in blueprint")
+	location, found := service["location"].(string)
+	assert.Condition(found, "no location specified")
+	if exists := c.catalogItemExists(name); !exists {
+		c.createNewCatalogItemWithoutLocation(name, []interface{}{service})
+	}
+	c.cliConnection.CliCommand("create-service", name, location, name)
+	return name
+}
+
+// expects an item from the brooklyn section with a name section
 func (c *PushCommand) newService(brooklynApplication map[interface{}]interface{}) string {
 	name, found := brooklynApplication["name"].(string)
 	assert.Condition(found, "Expected Name.")
@@ -150,6 +206,8 @@ func (c *PushCommand) newService(brooklynApplication map[interface{}]interface{}
 	return name
 }
 
+// expects an item from the brooklyn section
+// 
 func (c *PushCommand) createServices(brooklynApplication map[interface{}]interface{}, name string) {
 	// If there is a service section then this refers to an
 	// existing catalog entry.
