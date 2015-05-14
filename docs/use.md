@@ -1,7 +1,15 @@
+Push
+-----
+
+    $ cf brooklyn push
+    
+creates services specified in the application manifest.  See here for [instructions on writing
+services descriptions](manifest.md)
+
 Adding catalog items manually
 -----------------------------
 
-    $ cf brooklyn add-catalog [<broker> <username> <password>] <path/to/bluepri$
+    $ cf brooklyn add-catalog [<broker> <username> <password>] <path/to/blueprint>
 
 this allows new entities to be created and added to the brooklyn
 catalog.  The service broker that is associated will need to be
@@ -11,7 +19,7 @@ refreshed with `cf update-service-broker` and enabled with
 Deleting catalog items
 ----------------------
 
-    $ cf brooklyn delete-catalog [<broker> <username> <password>] <name> <versi$
+    $ cf brooklyn delete-catalog [<broker> <username> <password>] <name> <version>
 
 this allows catalog items to be deleted from the service broker.
 As with `add-catalog`, the service broker will need to be refreshed
