@@ -50,21 +50,9 @@ func (c *PushCommand) Push(args []string) {
 
 	//fmt.Println("getting brooklyn")
 	allCreatedServices := []string{}
-	
 	allCreatedServices = append(allCreatedServices, c.replaceTopLevelServices()...)
+	allCreatedServices = append(allCreatedServices, c.replaceApplicationServices()...)
 	
-	applications := c.yamlMap.Get("applications").([]interface{})
-	for _, app := range applications {
-		//fmt.Println("app...\n", app)
-		application, found := app.(map[interface{}]interface{})
-		assert.Condition(found, "Application not found.")
-		createdServices := c.replaceBrooklynCreatingServices(application)
-		moreCreatedServices := c.replaceServicesCreatingFromDef(application)
-		//fmt.Println(createdServices)
-		allCreatedServices = append(allCreatedServices, createdServices...)
-		allCreatedServices = append(allCreatedServices, moreCreatedServices...)
-		
-	}
 	for _, service := range allCreatedServices {
 		fmt.Printf("Waiting for %s to start...\n", service)
 	}
@@ -115,14 +103,11 @@ func (c *PushCommand) pushWith(args []string, tempFile string) {
 
 func (c *PushCommand) replaceTopLevelServices() []string{
 	allCreatedServices := []string{}
-	
-	// check for top level services first and create if necessary
 	services := c.yamlMap.Get("services").([]interface{})
 	for i, service := range services {
 		switch service.(type) {
 		case string: // do nothing, since service is an existing named service
 		case map[interface{}]interface{}:
-		   	// service definition
 		   	createdService := c.newServiceFromMap(service.(map[interface{}]interface{}))
 		   	allCreatedServices = append(allCreatedServices, createdService)
 			// replace the defn in the yaml for its name
@@ -132,25 +117,48 @@ func (c *PushCommand) replaceTopLevelServices() []string{
 	return allCreatedServices
 }
 
+func (c *PushCommand) replaceApplicationServices() []string {
+	allCreatedServices := []string{}
+	applications := c.yamlMap.Get("applications").([]interface{})
+	for _, app := range applications {
+		application, found := app.(map[interface{}]interface{})
+		assert.Condition(found, "Application not found.")
+		allCreatedServices = append(allCreatedServices, c.replaceBrooklynCreatingServices(application)...)
+		allCreatedServices = append(allCreatedServices, c.replaceServicesCreatingServices(application)...)
+	}
+	
+	return allCreatedServices
+}
+
 func (c *PushCommand) replaceBrooklynCreatingServices(application map[interface{}]interface{}) []string {
 	brooklyn, found := application["brooklyn"].([]interface{})
 	var createdServices []string
 	if !found { return createdServices }
-	// check to see if services section already exists
-	//fmt.Println("creating services")
-	createdServices = c.createAllServices(brooklyn)
-	//fmt.Println("Done")
+	createdServices = c.createAllServicesFromBrooklyn(brooklyn)
 	application["services"] = c.mergeServices(application, createdServices)
-
 	delete(application, "brooklyn")
-	//fmt.Println("\nmodified...", application)
 	return createdServices
 }
 
-func (c *PushCommand) replaceServicesCreatingFromDef(application map[interface{}]interface{}) []string {
+func (c *PushCommand) replaceServicesCreatingServices(application map[interface{}]interface{}) []string {
 	services, found := application["services"].([]interface{})
-	assert.Condition(found, "Services section not found.")
 	createdServices := []string{}
+	if !found { return createdServices }
+	createdServices = c.createAllServicesFromServices(services)
+	return createdServices
+}
+
+func (c *PushCommand) mergeServices(application map[interface{}]interface{}, services []string) []string {
+	if oldServices, found := application["services"].([]interface{}); found {
+		for _, name := range oldServices {
+			services = append(services, name.(string))
+		}
+	}
+	return services
+}
+
+func (c *PushCommand) createAllServicesFromServices(services []interface{}) []string {
+	var createdServices []string
 	for i, service := range services {
 		switch service.(type) {
 		case string: // do nothing, since service is an existing named service
@@ -164,25 +172,13 @@ func (c *PushCommand) replaceServicesCreatingFromDef(application map[interface{}
 	return createdServices
 }
 
-func (c *PushCommand) mergeServices(application map[interface{}]interface{}, services []string) []string {
-	if oldServices, found := application["services"].([]interface{}); found {
-		for _, name := range oldServices {
-			//fmt.Println("found", name)
-			services = append(services, name.(string))
-		}
-	}
-	return services
-}
-
-func (c *PushCommand) createAllServices(brooklyn []interface{}) []string {
+func (c *PushCommand) createAllServicesFromBrooklyn(brooklyn []interface{}) []string {
 	services := []string{}
 	for _, brooklynApp := range brooklyn {
-		//fmt.Println("brooklyn app... \n", brooklynApp)
 		brooklynApplication, found := brooklynApp.(map[interface{}]interface{})
 		assert.Condition(found, "Expected Map.")
 		services = append(services, c.newService(brooklynApplication))
 	}
-	//fmt.Println("finished creating services \n")
 	return services
 }
 
